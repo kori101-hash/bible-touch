@@ -1,0 +1,23 @@
+{
+  "short_name": "바이블터치",
+  "name": "바이블 터치 - 말씀 위로 처방",
+  "description": "지친 마음에 가만히 귀 기울이고, 은혜와 지혜의 성경 말씀을 맞춤 처방하여 마음의 상처를 메워주는 플랫폼입니다.",
+  "icons": [
+    {
+      "src": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=192&q=80",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=512&q=80",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#fbfbfb",
+  "theme_color": "#d97706",
+  "display": "standalone",
+  "orientation": "portrait"
+}
