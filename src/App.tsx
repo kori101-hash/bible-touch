@@ -26,9 +26,11 @@ import {
   Sun,
   Home,
   MessageSquare,
-  RefreshCw
+  RefreshCw,
+  TrendingUp
 } from "lucide-react";
 import { WorryResult, HistoryItem, Recommendation } from "./types.ts";
+import TradingDashboard from "./TradingDashboard";
 
 // 기본 오늘의 말씀 모음 (바이블 터치 - 성경 말씀 중심의 처방 추천)
 const DEFAULT_DAILY_VERSES = [
@@ -126,7 +128,7 @@ export default function App() {
   }, [bibleVersion]);
 
   // --- 탭 상태 ---
-  const [activeTab, setActiveTab] = useState<"home" | "recommend" | "saved" | "meditation" | "settings">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "recommend" | "saved" | "meditation" | "settings" | "trading">("home");
 
   // --- 핵심 비즈니스 상태 ---
   const [nickname, setNickname] = useState<string>(() => localStorage.getItem("mw_nickname") || "여행자");
@@ -2036,6 +2038,13 @@ export default function App() {
           </section>
         )}
 
+        {/* TAB 6: 자동매매 (trading) */}
+        {activeTab === "trading" && (
+          <section id="tab-trading" className="animate-fade-in -mx-4 -my-6 p-4">
+            <TradingDashboard />
+          </section>
+        )}
+
       </main>
 
       {/* 챌린지 시작 모달 오버레이 (스마트폰 내부에 absolute로 렌더링되게 하여 모바일 피트감 향상) */}
@@ -2151,6 +2160,7 @@ export default function App() {
           { id: "recommend", label: "말씀채팅", icon: MessageSquare },
           { id: "saved", label: "주신말씀", icon: Bookmark },
           { id: "meditation", label: "묵상", icon: Award },
+          { id: "trading", label: "자동매매", icon: TrendingUp },
           { id: "settings", label: "설정", icon: Settings }
         ].map(tab => {
           const Icon = tab.icon;

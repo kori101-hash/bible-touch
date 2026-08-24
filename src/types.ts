@@ -21,3 +21,54 @@ export interface HistoryItem {
   sources: string[]; // 선택된 소스 분류
   result: WorryResult; // 받아온 추천 결과
 }
+
+// TradingView 자동매매 관련 타입
+export interface TradingViewSignal {
+  symbol: string; // 거래 쌍 (BTC, ETH, XRP 등)
+  side: "buy" | "sell"; // 매수/매도
+  price?: number; // 신호 생성 시 가격
+  timestamp: string; // 신호 생성 시간
+}
+
+export interface TradeConfig {
+  enabled: boolean; // 자동매매 활성화
+  exchange: "upbit"; // 거래소
+  apiKey: string; // API 키
+  apiSecret: string; // API 시크릿
+  coins: string[]; // 거래할 코인 목록 (BTC, ETH, XRP 등)
+  positionSizePercent: number; // 포지션 크기 (계정 잔액의 %)
+  stopLossPercent: number; // 손절매 비율 (%)
+  takeProfitPercent: number; // 익절매 비율 (%)
+  maxDailyLoss: number; // 일일 최대 손실액 (KRW)
+}
+
+export interface ActiveTrade {
+  id: string;
+  symbol: string;
+  side: "buy" | "sell";
+  entryPrice: number;
+  quantity: number;
+  totalKRW: number;
+  stopLoss: number;
+  takeProfit: number;
+  openTime: string;
+  status: "open" | "closed";
+  closePrice?: number;
+  closeTime?: string;
+  pnl?: number; // 손익
+}
+
+export interface TradeHistory {
+  id: string;
+  symbol: string;
+  side: "buy" | "sell";
+  entryPrice: number;
+  exitPrice: number;
+  quantity: number;
+  totalKRW: number;
+  pnl: number;
+  pnlPercent: number;
+  openTime: string;
+  closeTime: string;
+  reason: "stop_loss" | "take_profit" | "manual";
+}

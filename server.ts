@@ -3,11 +3,16 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import { AutoTrader } from "./trader";
+import type { TradeConfig, TradingViewSignal } from "./src/types";
 
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
+
+// 자동매매 인스턴스
+let autoTrader: AutoTrader | null = null;
 
 // Initialize GoogleGenAI SDK
 const apiKeyEnv = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : undefined;
@@ -326,6 +331,139 @@ app.post("/api/recommend", async (req, res) => {
     console.log("Gemini API 장애 또는 503 오류 감지: Fallback 성경 말씀 데이터셋을 반환합니다.");
     const fallbackData = getFallbackBibleData(req.body.worry || "", "개역개정");
     return res.json(fallbackData);
+  }
+});
+
+// 거래 설정 초기화
+app.post("/api/trading/init", async (req, res) => {
+  try {
+    const { apiKey, apiSecret, coins, positionSizePercent, stopLossPercent, takeProfitPercent, maxDailyLoss } = req.body;
+
+    if (!apiKey || !apiSecret) {
+      return res.status(400).json({ error: "API Key와 Secret이 필요합니다." });
+    }
+
+    const config: TradeConfig = {
+      enabled: true,
+      exchange: "upbit",
+      apiKey,
+      apiSecret,
+      coins: coins || ["BTC", "ETH"],
+      positionSizePercent: positionSizePercent || 5,
+      stopLossPercent: stopLossPercent || 2,
+      takeProfitPercent: takeProfitPercent || 5,
+      maxDailyLoss: maxDailyLoss || 500000,
+    };
+
+    autoTrader = new AutoTrader(config);
+    res.json({ success: true, message: "자동매매 시스템이 초기화되었습니다." });
+  } catch (error: any) {
+    console.error("거래 초기화 오류:", error);
+    res.status(500).json({ error: String(error?.message || error) });
+  }
+});
+
+// TradingView 웹훅 엔드포인트
+app.post("/api/trading/webhook", async (req, res) => {
+  try {
+    if (!autoTrader) {
+      return res.status(400).json({ error: "자동매매 시스템이 초기화되지 않았습니다." });
+    }
+
+    const signal: TradingViewSignal = req.body;
+
+    if (!signal.symbol || !signal.side) {
+      return res.status(400).json({ error: "symbol과 side가 필요합니다." });
+    }
+
+    // 신호 처리
+    await autoTrader.processSignal({
+      symbol: signal.symbol,
+      side: signal.side,
+      price: signal.price,
+      timestamp: new Date().toISOString(),
+    });
+
+    res.json({ success: true, message: `${signal.side} 신호를 처리했습니다.` });
+  } catch (error: any) {
+    console.error("웹훅 처리 오류:", error);
+    res.status(500).json({ error: String(error?.message || error) });
+  }
+});
+
+// 활성 거래 조회
+app.get("/api/trading/active", (req, res) => {
+  try {
+    if (!autoTrader) {
+      return res.status(400).json({ error: "자동매매 시스템이 초기화되지 않았습니다." });
+    }
+
+    const activeTrades = autoTrader.getActiveTrades();
+    res.json(activeTrades);
+  } catch (error: any) {
+    console.error("활성 거래 조회 오류:", error);
+    res.status(500).json({ error: String(error?.message || error) });
+  }
+});
+
+// 거래 이력 조회
+app.get("/api/trading/history", (req, res) => {
+  try {
+    if (!autoTrader) {
+      return res.status(400).json({ error: "자동매매 시스템이 초기화되지 않았습니다." });
+    }
+
+    const history = autoTrader.getTradeHistory();
+    res.json(history);
+  } catch (error: any) {
+    console.error("거래 이력 조회 오류:", error);
+    res.status(500).json({ error: String(error?.message || error) });
+  }
+});
+
+// 일일 손실액 조회
+app.get("/api/trading/daily-loss", (req, res) => {
+  try {
+    if (!autoTrader) {
+      return res.status(400).json({ error: "자동매매 시스템이 초기화되지 않았습니다." });
+    }
+
+    const dailyLoss = autoTrader.getDailyLoss();
+    res.json({ dailyLoss });
+  } catch (error: any) {
+    console.error("일일 손실액 조회 오류:", error);
+    res.status(500).json({ error: String(error?.message || error) });
+  }
+});
+
+// 모든 거래 강제 종료
+app.post("/api/trading/close-all", async (req, res) => {
+  try {
+    if (!autoTrader) {
+      return res.status(400).json({ error: "자동매매 시스템이 초기화되지 않았습니다." });
+    }
+
+    await autoTrader.closeAllTrades();
+    res.json({ success: true, message: "모든 거래를 종료했습니다." });
+  } catch (error: any) {
+    console.error("거래 종료 오류:", error);
+    res.status(500).json({ error: String(error?.message || error) });
+  }
+});
+
+// 자동매매 활성화/비활성화
+app.post("/api/trading/toggle", (req, res) => {
+  try {
+    if (!autoTrader) {
+      return res.status(400).json({ error: "자동매매 시스템이 초기화되지 않았습니다." });
+    }
+
+    const { enabled } = req.body;
+    autoTrader.updateConfig({ enabled });
+    res.json({ success: true, message: `자동매매가 ${enabled ? "활성화" : "비활성화"}되었습니다.` });
+  } catch (error: any) {
+    console.error("토글 오류:", error);
+    res.status(500).json({ error: String(error?.message || error) });
   }
 });
 
