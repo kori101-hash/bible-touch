@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>자동트레이딩 대시보드</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+            min-height: 100vh;
+            color: #2c3e50;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        header p {
+            font-size: 1.1em;
+            color: #7f8c8d;
+            margin-bottom: 25px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 0;
+        }
+
+        .tab-button {
+            padding: 12px 24px;
+            border: none;
+            background: none;
+            font-size: 1em;
+            font-weight: 600;
+            color: #95a5a6;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .tab-button.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+
+        .tab-button:hover {
+            color: #2c3e50;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #3498db;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .card.profit {
+            border-left-color: #27ae60;
+        }
+
+        .card.loss {
+            border-left-color: #e74c3c;
+        }
+
+        .card.warning {
+            border-left-color: #f39c12;
+        }
+
+        .metric-label {
+            font-size: 0.9em;
+            color: #95a5a6;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .metric-subtitle {
+            font-size: 0.85em;
+            color: #7f8c8d;
+        }
+
+        .metric-value.profit {
+            color: #27ae60;
+        }
+
+        .metric-value.loss {
+            color: #e74c3c;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 350px;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.active {
+            background-color: #27ae60;
+        }
+
+        .status-indicator.inactive {
+            background-color: #e74c3c;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .trades-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        .trades-table thead {
+            background: #ecf0f1;
+            font-weight: 700;
+            color: #2c3e50;
+            text-transform: uppercase;
+            font-size: 0.85em;
+            letter-spacing: 0.5px;
+        }
+
+        .trades-table th,
+        .trades-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .trades-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .trades-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge.buy {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge.sell {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge.profit {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge.loss {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        .progress-fill.warning {
+            background: linear-gradient(90deg, #f39c12, #e67e22);
+        }
+
+        .progress-fill.danger {
+            background: linear-gradient(90deg, #e74c3c, #c0392b);
+        }
+
+        .control-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.95em;
+        }
+
+        .button.primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .button.primary:hover {
+            background: #2980b9;
+        }
+
+        .button.danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .button.danger:hover {
+            background: #c0392b;
+        }
+
+        .button.success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .button.success:hover {
+            background: #229954;
+        }
+
+        .timestamp {
+            font-size: 0.85em;
+            color: #95a5a6;
+            text-align: right;
+            margin-top: 20px;
+            font-style: italic;
+        }
+
+        /* 설정 탭 스타일 */
+        .settings-section {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .settings-section h3 {
+            font-size: 1.1em;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ecf0f1;
+            border-radius: 8px;
+            font-size: 0.9em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .alert {
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .password-input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .password-input-group input {
+            flex: 1;
+        }
+
+        .password-toggle {
+            padding: 10px 12px;
+            background: #ecf0f1;
+            border: 1px solid #ecf0f1;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .password-toggle:hover {
+            background: #d5dbdb;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 15px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            color: #155724;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .connection-status.disconnected {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 자동트레이딩 대시보드</h1>
+            <p>Upbit 코인 자동매매 실시간 모니터링</p>
+
+            <!-- 탭 메뉴 -->
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('dashboard')">📊 대시보드</button>
+                <button class="tab-button" onclick="switchTab('settings')">⚙️ 설정</button>
+            </div>
+        </header>
+
+        <!-- 대시보드 탭 -->
+        <div id="dashboard" class="tab-content active">
+            <!-- 제어판 -->
+            <div class="control-panel">
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <span class="status-indicator active" id="statusIndicator"></span>
+                    <span id="statusText" style="font-weight: 600; color: #27ae60;">🟢 활성</span>
+                    <div style="margin-left: auto; display: flex; gap: 10px;">
+                        <button class="button primary" onclick="toggleAutoTrading()">활성화 / 비활성화</button>
+                        <button class="button danger" onclick="closeAllTrades()">모든 거래 종료</button>
+                        <button class="button" style="background: #95a5a6; color: white;" onclick="refreshData()">🔄 새로고침</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 주요 메트릭 -->
+            <div class="grid">
+                <div class="card" id="totalProfitCard">
+                    <div class="metric-label">총 손익</div>
+                    <div class="metric-value profit" id="totalProfit">+₩245,000</div>
+                    <div class="metric-subtitle">모든 거래의 누적 손익</div>
+                </div>
+
+                <div class="card" id="winRateCard">
+                    <div class="metric-label">승률</div>
+                    <div class="metric-value" id="winRate">62.5%</div>
+                    <div class="metric-subtitle">24건 중 15승</div>
+                </div>
+
+                <div class="card warning">
+                    <div class="metric-label">일일 손실액</div>
+                    <div class="metric-value" id="dailyLoss">₩-45,000</div>
+                    <div class="metric-subtitle">최대 한도: ₩500,000</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill warning" style="width: 9%;"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="metric-label">활성 거래</div>
+                    <div class="metric-value" id="activeTrades">3</div>
+                    <div class="metric-subtitle">진행 중인 포지션</div>
+                </div>
+
+                <div class="card">
+                    <div class="metric-label">평균 수익률</div>
+                    <div class="metric-value profit" id="avgReturn">+2.84%</div>
+                    <div class="metric-subtitle">완료된 거래 기준</div>
+                </div>
+
+                <div class="card">
+                    <div class="metric-label">최대 연속 승리</div>
+                    <div class="metric-value" id="maxStreak">5연승</div>
+                    <div class="metric-subtitle">최근 성적</div>
+                </div>
+            </div>
+
+            <!-- 차트 섹션 -->
+            <div class="two-column">
+                <div class="chart-container">
+                    <div class="chart-title">📈 누적 수익 추이</div>
+                    <canvas id="profitChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">📊 거래 결과 분포</div>
+                    <canvas id="resultChart"></canvas>
+                </div>
+            </div>
+
+            <div class="two-column">
+                <div class="chart-container">
+                    <div class="chart-title">💰 코인별 성과</div>
+                    <canvas id="coinChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">⏰ 시간대별 수익률</div>
+                    <canvas id="timeChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 활성 거래 테이블 -->
+            <div style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); margin-bottom: 30px;">
+                <h2 style="color: #2c3e50; margin-bottom: 15px; font-size: 1.3em;">🔄 활성 거래 (진행 중)</h2>
+                <table class="trades-table">
+                    <thead>
+                        <tr>
+                            <th>코인</th>
+                            <th>방향</th>
+                            <th>진입가</th>
+                            <th>현재가</th>
+                            <th>손익</th>
+                            <th>수익률</th>
+                            <th>손절매</th>
+                            <th>익절매</th>
+                            <th>진입 시간</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activeTradesBody">
+                        <tr>
+                            <td><strong>BTC</strong></td>
+                            <td><span class="badge buy">매수</span></td>
+                            <td>45,000,000</td>
+                            <td>46,200,000</td>
+                            <td><span style="color: #27ae60; font-weight: 600;">+₩600,000</span></td>
+                            <td><span style="color: #27ae60; font-weight: 600;">+2.67%</span></td>
+                            <td>44,100,000</td>
+                            <td>47,250,000</td>
+                            <td>09:30:15</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 거래 이력 테이블 -->
+            <div style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                <h2 style="color: #2c3e50; margin-bottom: 15px; font-size: 1.3em;">📋 거래 이력 (최근 10건)</h2>
+                <table class="trades-table">
+                    <thead>
+                        <tr>
+                            <th>코인</th>
+                            <th>방향</th>
+                            <th>진입가</th>
+                            <th>결산가</th>
+                            <th>손익</th>
+                            <th>수익률</th>
+                            <th>종료 사유</th>
+                            <th>거래 시간</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody">
+                        <tr>
+                            <td><strong>ADA</strong></td>
+                            <td><span class="badge buy">매수</span></td>
+                            <td>650</td>
+                            <td>680</td>
+                            <td><span style="color: #27ae60; font-weight: 600;">+₩15,000</span></td>
+                            <td><span style="color: #27ae60; font-weight: 600;">+4.62%</span></td>
+                            <td><span class="badge profit">익절매</span></td>
+                            <td>오전 08:30 ~ 10:15</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="timestamp">
+                마지막 업데이트: <span id="updateTime">2026년 08월 25일 14:35:22</span>
+            </div>
+        </div>
+
+        <!-- 설정 탭 -->
+        <div id="settings" class="tab-content">
+            <!-- Upbit API 설정 -->
+            <div class="settings-section">
+                <h3>⚡ Upbit API 연동</h3>
+
+                <div id="apiConnectionStatus" class="connection-status disconnected">
+                    🔴 Upbit API 미연동
+                </div>
+
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="password" id="apiKeyInput" placeholder="Upbit API Key를 입력하세요..." value="">
+                </div>
+
+                <div class="form-group">
+                    <label>API Secret</label>
+                    <div class="password-input-group">
+                        <input type="password" id="apiSecretInput" placeholder="Upbit API Secret을 입력하세요..." value="">
+                        <button class="password-toggle" onclick="togglePasswordVisibility()">👁️</button>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button class="button success" onclick="connectUpbitAPI()">✅ API 연동하기</button>
+                    <button class="button danger" onclick="disconnectUpbitAPI()" style="display: none;" id="disconnectBtn">연동 해제</button>
+                </div>
+
+                <div id="apiMessage" style="margin-top: 15px;"></div>
+            </div>
+
+            <!-- 거래 설정 -->
+            <div class="settings-section">
+                <h3>📈 거래 설정</h3>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>거래할 코인 (쉼표로 구분)</label>
+                        <input type="text" id="coinsInput" placeholder="BTC,ETH,XRP" value="BTC,ETH">
+                    </div>
+                    <div class="form-group">
+                        <label>포지션 크기 (%)</label>
+                        <input type="number" id="positionSizeInput" min="1" max="50" value="5">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>손절매 (%)</label>
+                        <input type="number" id="stopLossInput" min="0.1" max="10" step="0.1" value="2">
+                    </div>
+                    <div class="form-group">
+                        <label>익절매 (%)</label>
+                        <input type="number" id="takeProfitInput" min="0.1" max="100" step="0.1" value="5">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>일일 최대 손실액 (KRW)</label>
+                    <input type="number" id="maxDailyLossInput" min="10000" step="10000" value="500000">
+                </div>
+
+                <button class="button primary" onclick="saveTradeSettings()">💾 설정 저장</button>
+            </div>
+
+            <!-- TradingView 웹훅 설정 -->
+            <div class="settings-section">
+                <h3>🔗 TradingView Webhook 설정</h3>
+                <p style="margin-bottom: 15px; color: #7f8c8d; font-size: 0.9em;">
+                    TradingView에서 다음 URL을 Webhook로 설정하세요:
+                </p>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="webhookUrl" value="https://your-domain.com/api/trading/webhook" readonly style="flex: 1;">
+                    <button class="button primary" onclick="copyWebhookUrl()">📋 복사</button>
+                </div>
+                <p style="margin-top: 15px; color: #7f8c8d; font-size: 0.85em;">
+                    <strong>Webhook Payload 예시:</strong><br>
+                    <code style="background: #f8f9fa; padding: 8px; border-radius: 4px; display: block; margin-top: 10px;">
+                    {
+                        "symbol": "BTC",<br>
+                        "side": "buy",<br>
+                        "price": 45000000<br>
+                    }
+                    </code>
+                </p>
+            </div>
+
+            <!-- 위험 경고 -->
+            <div class="alert error">
+                ⚠️ <strong>중요:</strong> 실제 거래는 자산 손실 위험이 있습니다. 백테스팅을 충분히 한 후 사용하세요. API 키는 절대 공개하지 마세요!
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 탭 전환 함수
+        function switchTab(tabName) {
+            // 모든 탭 숨기기
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+
+            // 선택한 탭 표시
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+
+            // 대시보드 탭이면 차트 다시 그리기
+            if (tabName === 'dashboard') {
+                setTimeout(initCharts, 100);
+            }
+        }
+
+        // 비밀번호 표시/숨김
+        function togglePasswordVisibility() {
+            const input = document.getElementById('apiSecretInput');
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+
+        // Upbit API 연동
+        function connectUpbitAPI() {
+            const apiKey = document.getElementById('apiKeyInput').value;
+            const apiSecret = document.getElementById('apiSecretInput').value;
+
+            if (!apiKey || !apiSecret) {
+                showMessage('apiMessage', 'API Key와 Secret을 입력하세요.', 'error');
+                return;
+            }
+
+            // 로컬 스토리지에 저장 (데모용)
+            localStorage.setItem('upbit_api_key', apiKey);
+            localStorage.setItem('upbit_api_secret', apiSecret);
+            localStorage.setItem('upbit_connected', 'true');
+
+            updateConnectionStatus(true);
+            showMessage('apiMessage', '✅ Upbit API 연동이 완료되었습니다!', 'success');
+        }
+
+        // Upbit API 연동 해제
+        function disconnectUpbitAPI() {
+            localStorage.removeItem('upbit_api_key');
+            localStorage.removeItem('upbit_api_secret');
+            localStorage.removeItem('upbit_connected');
+
+            document.getElementById('apiKeyInput').value = '';
+            document.getElementById('apiSecretInput').value = '';
+
+            updateConnectionStatus(false);
+            showMessage('apiMessage', '🔌 Upbit API 연동이 해제되었습니다.', 'info');
+        }
+
+        // 연결 상태 업데이트
+        function updateConnectionStatus(connected) {
+            const statusDiv = document.getElementById('apiConnectionStatus');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+
+            if (connected) {
+                statusDiv.textContent = '🟢 Upbit API 연동됨';
+                statusDiv.classList.remove('disconnected');
+                disconnectBtn.style.display = 'block';
+            } else {
+                statusDiv.textContent = '🔴 Upbit API 미연동';
+                statusDiv.classList.add('disconnected');
+                disconnectBtn.style.display = 'none';
+            }
+        }
+
+        // 메시지 표시
+        function showMessage(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="alert ${type}">${message}</div>`;
+        }
+
+        // 설정 저장
+        function saveTradeSettings() {
+            const settings = {
+                coins: document.getElementById('coinsInput').value,
+                positionSize: document.getElementById('positionSizeInput').value,
+                stopLoss: document.getElementById('stopLossInput').value,
+                takeProfit: document.getElementById('takeProfitInput').value,
+                maxDailyLoss: document.getElementById('maxDailyLossInput').value,
+            };
+
+            localStorage.setItem('trade_settings', JSON.stringify(settings));
+            showMessage('apiMessage', '💾 거래 설정이 저장되었습니다.', 'success');
+        }
+
+        // 웹훅 URL 복사
+        function copyWebhookUrl() {
+            const url = document.getElementById('webhookUrl').value;
+            navigator.clipboard.writeText(url);
+            alert('웹훅 URL이 복사되었습니다!');
+        }
+
+        // 초기화
+        function initDashboard() {
+            // 로컬 스토리지에서 저장된 설정 로드
+            const settings = JSON.parse(localStorage.getItem('trade_settings') || '{}');
+            if (settings.coins) {
+                document.getElementById('coinsInput').value = settings.coins;
+                document.getElementById('positionSizeInput').value = settings.positionSize || 5;
+                document.getElementById('stopLossInput').value = settings.stopLoss || 2;
+                document.getElementById('takeProfitInput').value = settings.takeProfit || 5;
+                document.getElementById('maxDailyLossInput').value = settings.maxDailyLoss || 500000;
+            }
+
+            // 연결 상태 확인
+            if (localStorage.getItem('upbit_connected') === 'true') {
+                document.getElementById('apiKeyInput').value = '••••••••••••••••';
+                document.getElementById('apiSecretInput').value = '••••••••••••••••';
+                updateConnectionStatus(true);
+            }
+
+            initCharts();
+            setInterval(() => {
+                document.getElementById('updateTime').textContent = new Date().toLocaleString('ko-KR');
+            }, 1000);
+        }
+
+        // 차트 초기화
+        function initCharts() {
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                            font: { size: 12, weight: 600 },
+                            color: '#2c3e50',
+                            padding: 15
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: '#ecf0f1' },
+                        ticks: { color: '#95a5a6', font: { size: 11 } }
+                    },
+                    y: {
+                        grid: { color: '#ecf0f1' },
+                        ticks: { color: '#95a5a6', font: { size: 11 } }
+                    }
+                }
+            };
+
+            // 누적 수익 추이 차트
+            const profitCtx = document.getElementById('profitChart');
+            if (profitCtx && !profitCtx.chart) {
+                profitCtx.chart = new Chart(profitCtx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00'],
+                        datasets: [{
+                            label: '누적 수익',
+                            data: [0, 50000, 85000, 120000, 95000, 155000, 245000],
+                            borderColor: '#27ae60',
+                            backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 6,
+                            pointBackgroundColor: '#27ae60',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2
+                        }]
+                    },
+                    options: chartOptions
+                });
+            }
+
+            // 거래 결과 분포 차트
+            const resultCtx = document.getElementById('resultChart');
+            if (resultCtx && !resultCtx.chart) {
+                resultCtx.chart = new Chart(resultCtx.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['수익 거래', '손실 거래'],
+                        datasets: [{
+                            data: [15, 9],
+                            backgroundColor: ['#27ae60', '#e74c3c'],
+                            borderColor: '#fff',
+                            borderWidth: 3
+                        }]
+                    },
+                    options: {
+                        ...chartOptions,
+                        plugins: {
+                            ...chartOptions.plugins,
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            }
+
+            // 코인별 성과 차트
+            const coinCtx = document.getElementById('coinChart');
+            if (coinCtx && !coinCtx.chart) {
+                coinCtx.chart = new Chart(coinCtx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['BTC', 'ETH', 'XRP', 'ADA', 'DOGE'],
+                        datasets: [{
+                            label: '수익 (원)',
+                            data: [600000, 80000, 120000, 15000, -5000],
+                            backgroundColor: ['#27ae60', '#27ae60', '#27ae60', '#27ae60', '#e74c3c'],
+                            borderRadius: 6,
+                            borderSkipped: false
+                        }]
+                    },
+                    options: chartOptions
+                });
+            }
+
+            // 시간대별 수익률 차트
+            const timeCtx = document.getElementById('timeChart');
+            if (timeCtx && !timeCtx.chart) {
+                timeCtx.chart = new Chart(timeCtx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['08-09시', '10-11시', '12-13시', '14-15시', '16-17시', '18-19시'],
+                        datasets: [{
+                            label: '수익률 (%)',
+                            data: [2.5, 3.2, 4.1, -1.2, 2.8, 3.5],
+                            backgroundColor: [
+                                '#27ae60', '#27ae60', '#27ae60', '#e74c3c', '#27ae60', '#27ae60'
+                            ],
+                            borderRadius: 6,
+                            borderSkipped: false
+                        }]
+                    },
+                    options: chartOptions
+                });
+            }
+        }
+
+        // 제어 함수들
+        function toggleAutoTrading() {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            if (indicator.classList.contains('active')) {
+                indicator.classList.remove('active');
+                indicator.classList.add('inactive');
+                statusText.textContent = '🔴 비활성';
+                statusText.style.color = '#e74c3c';
+            } else {
+                indicator.classList.remove('inactive');
+                indicator.classList.add('active');
+                statusText.textContent = '🟢 활성';
+                statusText.style.color = '#27ae60';
+            }
+        }
+
+        function closeAllTrades() {
+            if (confirm('정말로 모든 거래를 종료하시겠습니까?')) {
+                alert('모든 거래가 종료되었습니다.');
+                document.getElementById('activeTradesBody').innerHTML = '<tr><td colspan="9" style="text-align: center; color: #95a5a6; padding: 20px;">활성 거래가 없습니다.</td></tr>';
+            }
+        }
+
+        function refreshData() {
+            alert('데이터가 새로고침되었습니다.');
+        }
+
+        // 페이지 로드 시 초기화
+        window.addEventListener('load', initDashboard);
+    </script>
+</body>
+</html>
