@@ -27,7 +27,10 @@ import {
   Home,
   MessageSquare,
   RefreshCw,
-  TrendingUp
+  TrendingUp,
+  Zap,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { WorryResult, HistoryItem, Recommendation } from "./types.ts";
 import TradingDashboard from "./TradingDashboard";
@@ -267,6 +270,14 @@ export default function App() {
     return localStorage.getItem("mw_night_mode") === "true";
   });
   const [simulatedTime, setSimulatedTime] = useState("09:41");
+
+  // Upbit API 설정
+  const [upbitApiKey, setUpbitApiKey] = useState<string>(() => localStorage.getItem("mw_upbit_api_key") || "");
+  const [upbitApiSecret, setUpbitApiSecret] = useState<string>(() => localStorage.getItem("mw_upbit_api_secret") || "");
+  const [showApiSecret, setShowApiSecret] = useState(false);
+  const [upbitConnected, setUpbitConnected] = useState<boolean>(() => localStorage.getItem("mw_upbit_connected") === "true");
+  const [upbitTestLoading, setUpbitTestLoading] = useState(false);
+  const [upbitTestResult, setUpbitTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // 모바일 디바이스 상태바 시뮬레이션용 시간 업데이트
   useEffect(() => {
@@ -1938,6 +1949,138 @@ export default function App() {
                   </div>
                 </button>
               </div>
+            </div>
+
+            {/* ⚡ Upbit API 연동 설정 */}
+            <div className={`border rounded-[32px] p-5 sm:p-6 space-y-4 shadow-sm ${isNightMode ? "bg-[#091b22]/90 border-teal-500/10" : "bg-white border-[#e2eff3]"}`}>
+              <h3 className="text-sm font-bold text-[#007A87] flex items-center gap-2">
+                <Zap className="w-4 h-4 text-[#007A87]" />
+                <span>Upbit 자동매매 연동</span>
+              </h3>
+              {upbitConnected ? (
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-green-50 border border-green-200/50">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      <span className="text-xs font-bold text-green-700">Upbit API 연동됨</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setUpbitApiKey("");
+                        setUpbitApiSecret("");
+                        setUpbitConnected(false);
+                        setUpbitTestResult(null);
+                        localStorage.removeItem("mw_upbit_api_key");
+                        localStorage.removeItem("mw_upbit_api_secret");
+                        localStorage.removeItem("mw_upbit_connected");
+                        triggerAlert("Upbit API 연동이 해제되었습니다. 🔌");
+                      }}
+                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-all"
+                    >
+                      연동 해제
+                    </button>
+                  </div>
+                  <p className="text-xs text-stone-500">자동매매 탭에서 설정을 완료한 후 거래를 시작할 수 있습니다.</p>
+                </div>
+              ) : (
+                <div className="space-y-3 pt-1">
+                  <div>
+                    <label className="block text-xs font-bold text-stone-500 mb-2">API Key</label>
+                    <input
+                      type="password"
+                      value={upbitApiKey}
+                      onChange={(e) => setUpbitApiKey(e.target.value)}
+                      placeholder="Upbit API Key를 입력하세요..."
+                      className={`w-full rounded-xl p-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#007A87]/20 focus:border-[#007A87] transition-all border ${
+                        isNightMode
+                          ? "bg-[#051116] border-teal-900/30 text-teal-100 placeholder-teal-600"
+                          : "bg-stone-50 border-stone-200 text-[#0d2a35]"
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-stone-500 mb-2">API Secret</label>
+                    <div className="flex gap-2">
+                      <input
+                        type={showApiSecret ? "text" : "password"}
+                        value={upbitApiSecret}
+                        onChange={(e) => setUpbitApiSecret(e.target.value)}
+                        placeholder="Upbit API Secret을 입력하세요..."
+                        className={`flex-1 rounded-xl p-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#007A87]/20 focus:border-[#007A87] transition-all border ${
+                          isNightMode
+                            ? "bg-[#051116] border-teal-900/30 text-teal-100 placeholder-teal-600"
+                            : "bg-stone-50 border-stone-200 text-[#0d2a35]"
+                        }`}
+                      />
+                      <button
+                        onClick={() => setShowApiSecret(!showApiSecret)}
+                        className="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-xl transition-all"
+                      >
+                        {showApiSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        setUpbitTestLoading(true);
+                        try {
+                          // API 테스트
+                          const res = await fetch("/api/trading/init", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              apiKey: upbitApiKey,
+                              apiSecret: upbitApiSecret,
+                              coins: ["BTC"],
+                              positionSizePercent: 5,
+                              stopLossPercent: 2,
+                              takeProfitPercent: 5,
+                              maxDailyLoss: 500000,
+                            }),
+                          });
+
+                          if (res.ok) {
+                            setUpbitConnected(true);
+                            localStorage.setItem("mw_upbit_api_key", upbitApiKey);
+                            localStorage.setItem("mw_upbit_api_secret", upbitApiSecret);
+                            localStorage.setItem("mw_upbit_connected", "true");
+                            setUpbitTestResult({ success: true, message: "API 연동에 성공했습니다! ✅" });
+                            triggerAlert("Upbit API 연동이 완료되었습니다! 🎉");
+                          } else {
+                            const data = await res.json();
+                            setUpbitTestResult({ success: false, message: data.error || "API 연동 실패" });
+                          }
+                        } catch (err: any) {
+                          setUpbitTestResult({ success: false, message: err.message });
+                        } finally {
+                          setUpbitTestLoading(false);
+                        }
+                      }}
+                      disabled={upbitTestLoading || !upbitApiKey || !upbitApiSecret}
+                      className="flex-1 px-4 py-2 bg-[#007A87] hover:bg-[#00616b] disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      {upbitTestLoading ? "테스트 중..." : "연동하기"}
+                    </button>
+                  </div>
+                  {upbitTestResult && (
+                    <div className={`p-3 rounded-xl border text-xs font-bold ${
+                      upbitTestResult.success
+                        ? "bg-green-50 border-green-200 text-green-700"
+                        : "bg-red-50 border-red-200 text-red-700"
+                    }`}>
+                      {upbitTestResult.message}
+                    </div>
+                  )}
+                  <p className="text-xs text-stone-500">
+                    💡 Upbit 거래소에서 API 키를 생성하세요.
+                    <a href="https://upbit.com/service_center/open_api_guide" target="_blank" rel="noopener noreferrer" className="text-[#007A87] font-bold ml-1 inline-block">
+                      가이드 보기 →
+                    </a>
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* 🔔 알림 설정 */}
