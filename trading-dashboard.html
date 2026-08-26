@@ -699,28 +699,6 @@
                 <button class="button primary" onclick="saveTradeSettings()">💾 설정 저장</button>
             </div>
 
-            <!-- TradingView 웹훅 설정 -->
-            <div class="settings-section">
-                <h3>🔗 TradingView Webhook 설정</h3>
-                <p style="margin-bottom: 15px; color: #7f8c8d; font-size: 0.9em;">
-                    TradingView에서 다음 URL을 Webhook로 설정하세요:
-                </p>
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" id="webhookUrl" value="https://your-domain.com/api/trading/webhook" readonly style="flex: 1;">
-                    <button class="button primary" onclick="copyWebhookUrl()">📋 복사</button>
-                </div>
-                <p style="margin-top: 15px; color: #7f8c8d; font-size: 0.85em;">
-                    <strong>Webhook Payload 예시:</strong><br>
-                    <code style="background: #f8f9fa; padding: 8px; border-radius: 4px; display: block; margin-top: 10px;">
-                    {
-                        "symbol": "BTC",<br>
-                        "side": "buy",<br>
-                        "price": 45000000<br>
-                    }
-                    </code>
-                </p>
-            </div>
-
             <!-- 위험 경고 -->
             <div class="alert error">
                 ⚠️ <strong>중요:</strong> 실제 거래는 자산 손실 위험이 있습니다. 백테스팅을 충분히 한 후 사용하세요. API 키는 절대 공개하지 마세요!
@@ -751,8 +729,8 @@
             input.type = input.type === 'password' ? 'text' : 'password';
         }
 
-        // Upbit API 연동
-        function connectUpbitAPI() {
+        // Upbit API 연동 (실제 테스트)
+        async function connectUpbitAPI() {
             const apiKey = document.getElementById('apiKeyInput').value;
             const apiSecret = document.getElementById('apiSecretInput').value;
 
@@ -761,13 +739,38 @@
                 return;
             }
 
-            // 로컬 스토리지에 저장 (데모용)
-            localStorage.setItem('upbit_api_key', apiKey);
-            localStorage.setItem('upbit_api_secret', apiSecret);
-            localStorage.setItem('upbit_connected', 'true');
+            try {
+                showMessage('apiMessage', '⏳ Upbit API 연동 테스트 중...', 'info');
 
-            updateConnectionStatus(true);
-            showMessage('apiMessage', '✅ Upbit API 연동이 완료되었습니다!', 'success');
+                const response = await fetch('/api/trading/init', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        apiKey: apiKey,
+                        apiSecret: apiSecret,
+                        coins: 'BTC',
+                        positionSizePercent: 5,
+                        stopLossPercent: 2,
+                        takeProfitPercent: 5,
+                        maxDailyLoss: 500000
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    localStorage.setItem('upbit_api_key', apiKey);
+                    localStorage.setItem('upbit_api_secret', apiSecret);
+                    localStorage.setItem('upbit_connected', 'true');
+
+                    updateConnectionStatus(true);
+                    showMessage('apiMessage', '✅ Upbit API 연동이 완료되었습니다!', 'success');
+                } else {
+                    showMessage('apiMessage', `❌ 연동 실패: ${data.error || '알 수 없는 오류'}`, 'error');
+                }
+            } catch (error) {
+                showMessage('apiMessage', `❌ 오류 발생: ${error.message}`, 'error');
+            }
         }
 
         // Upbit API 연동 해제
@@ -817,13 +820,6 @@
 
             localStorage.setItem('trade_settings', JSON.stringify(settings));
             showMessage('apiMessage', '💾 거래 설정이 저장되었습니다.', 'success');
-        }
-
-        // 웹훅 URL 복사
-        function copyWebhookUrl() {
-            const url = document.getElementById('webhookUrl').value;
-            navigator.clipboard.writeText(url);
-            alert('웹훅 URL이 복사되었습니다!');
         }
 
         // 초기화
