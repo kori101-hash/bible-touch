@@ -335,6 +335,38 @@ app.post("/api/recommend", async (req, res) => {
   }
 });
 
+// 디버깅: Upbit API 테스트
+app.post("/api/trading/test", async (req, res) => {
+  try {
+    const { apiKey, apiSecret } = req.body;
+
+    if (!apiKey || !apiSecret) {
+      return res.status(400).json({ error: "API Key와 Secret이 필요합니다." });
+    }
+
+    console.log("\n=== Upbit API 테스트 시작 ===");
+    console.log("API Key:", apiKey.substring(0, 10) + "***");
+    console.log("API Secret:", apiSecret.substring(0, 10) + "***");
+
+    const testClient = new UpbitClient({ apiKey, apiSecret });
+
+    try {
+      const accounts = await testClient.getAccounts();
+      console.log("✅ 성공! 계좌 수:", accounts.length);
+      console.log("계좌 정보:", JSON.stringify(accounts, null, 2));
+      res.json({ success: true, accounts });
+    } catch (error: any) {
+      console.error("❌ 실패");
+      console.error("오류 메시지:", error.message);
+      console.error("전체 오류:", error);
+      res.status(400).json({ error: error.message });
+    }
+  } catch (error: any) {
+    console.error("테스트 오류:", error);
+    res.status(500).json({ error: String(error?.message || error) });
+  }
+});
+
 // 거래 설정 초기화
 app.post("/api/trading/init", async (req, res) => {
   try {
