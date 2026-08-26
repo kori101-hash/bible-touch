@@ -98,18 +98,26 @@ export class UpbitClient {
 
     let requestBody = "";
 
-    if (query) {
-      const queryString = new URLSearchParams(
-        Object.entries(query).reduce((acc, [key, value]) => {
-          acc[key] = String(value);
-          return acc;
-        }, {} as Record<string, string>)
-      ).toString();
+    // 인증이 필요한 요청(GET /accounts, DELETE, POST 등)에는 항상 서명 추가
+    const requiresAuth = ["GET", "POST", "DELETE", "PUT"].includes(method);
+
+    if (requiresAuth) {
+      const queryString = query
+        ? new URLSearchParams(
+            Object.entries(query).reduce((acc, [key, value]) => {
+              acc[key] = String(value);
+              return acc;
+            }, {} as Record<string, string>)
+          ).toString()
+        : "";
 
       const signature = this.generateSignature(queryString);
       headers["X-Payload"] = Buffer.from(queryString).toString("base64");
       headers["X-Signature"] = signature;
-      url.search = queryString;
+
+      if (queryString) {
+        url.search = queryString;
+      }
     }
 
     if (body) {
