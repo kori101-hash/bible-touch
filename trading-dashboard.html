@@ -729,6 +729,16 @@
             input.type = input.type === 'password' ? 'text' : 'password';
         }
 
+        // 서버 URL 가져오기
+        function getServerURL() {
+            // 로컬 개발 환경
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                return 'http://localhost:3000';
+            }
+            // 프로덕션 환경 (필요시 수정)
+            return window.location.origin;
+        }
+
         // Upbit API 연동 (실제 테스트)
         async function connectUpbitAPI() {
             const apiKey = document.getElementById('apiKeyInput').value;
@@ -742,7 +752,10 @@
             try {
                 showMessage('apiMessage', '⏳ Upbit API 연동 테스트 중...', 'info');
 
-                const response = await fetch('/api/trading/init', {
+                const serverURL = getServerURL();
+                console.log('서버 URL:', serverURL);
+
+                const response = await fetch(serverURL + '/api/trading/init', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
