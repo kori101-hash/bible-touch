@@ -697,6 +697,12 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
+// 자동매매 대시보드 제공
+app.get("/dashboard", (req, res) => {
+  const dashboardPath = path.join(process.cwd(), "trading-dashboard.html");
+  res.sendFile(dashboardPath);
+});
+
 // Setup Vite or Static File Serving
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
