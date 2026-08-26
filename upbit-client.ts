@@ -131,15 +131,31 @@ export class UpbitClient {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(
-        `Upbit API Error: ${error.error?.name || "Unknown Error"} - ${
-          error.error?.message || response.statusText
-        }`
-      );
+      try {
+        const error = await response.json();
+        throw new Error(
+          `Upbit API Error: ${error.error?.name || "Unknown Error"} - ${
+            error.error?.message || response.statusText
+          }`
+        );
+      } catch (parseError) {
+        // JSON 파싱 실패 시 status text 사용
+        throw new Error(
+          `Upbit API Error (${response.status}): ${response.statusText}`
+        );
+      }
     }
 
-    return response.json();
+    const responseText = await response.text();
+    if (!responseText) {
+      throw new Error("Upbit API returned empty response");
+    }
+
+    try {
+      return JSON.parse(responseText);
+    } catch (parseError) {
+      throw new Error(`Invalid JSON response from Upbit API: ${responseText.substring(0, 100)}`);
+    }
   }
 
   // 계좌 조회

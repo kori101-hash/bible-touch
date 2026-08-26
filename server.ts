@@ -4,6 +4,7 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import { AutoTrader } from "./trader";
+import { UpbitClient } from "./upbit-client";
 import type { TradeConfig, TradingViewSignal } from "./src/types";
 
 dotenv.config();
@@ -343,6 +344,35 @@ app.post("/api/trading/init", async (req, res) => {
       return res.status(400).json({ error: "API Key와 Secret이 필요합니다." });
     }
 
+    // Upbit API 연결 테스트
+    console.log("Upbit API 테스트 중...");
+    const testClient = new UpbitClient({ apiKey, apiSecret });
+
+    try {
+      // 계좌 정보 조회로 API 유효성 테스트
+      const accounts = await testClient.getAccounts();
+      console.log("✅ Upbit API 연결 성공. 계좌 수:", accounts.length);
+    } catch (apiError: any) {
+      console.error("❌ Upbit API 연결 실패:", apiError);
+      const errorMsg = String(apiError?.message || apiError || "");
+
+      if (errorMsg.includes("401") || errorMsg.includes("Unauthorized") || errorMsg.includes("invalid")) {
+        return res.status(401).json({
+          error: "Upbit API 키가 유효하지 않습니다. API 키와 Secret을 다시 확인해주세요."
+        });
+      } else if (errorMsg.includes("403") || errorMsg.includes("Forbidden")) {
+        return res.status(403).json({
+          error: "Upbit API 권한이 부족합니다. 계좌 조회 권한을 확인해주세요."
+        });
+      } else if (errorMsg.includes("Network") || errorMsg.includes("fetch")) {
+        return res.status(503).json({
+          error: "Upbit 서버에 연결할 수 없습니다. 나중에 다시 시도해주세요."
+        });
+      }
+
+      return res.status(500).json({ error: errorMsg });
+    }
+
     const config: TradeConfig = {
       enabled: true,
       exchange: "upbit",
@@ -356,7 +386,7 @@ app.post("/api/trading/init", async (req, res) => {
     };
 
     autoTrader = new AutoTrader(config);
-    res.json({ success: true, message: "자동매매 시스템이 초기화되었습니다." });
+    res.json({ success: true, message: "✅ Upbit API 연동이 완료되었습니다!" });
   } catch (error: any) {
     console.error("거래 초기화 오류:", error);
     res.status(500).json({ error: String(error?.message || error) });
