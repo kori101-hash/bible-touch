@@ -70,6 +70,7 @@ export class UpbitClient {
   private apiKey: string;
   private apiSecret: string;
   private baseURL = "https://api.upbit.com/v1";
+  private requestTimeout = 10000; // 10초 타임아웃
 
   constructor(config: UpbitConfig) {
     this.apiKey = config.apiKey;
@@ -124,29 +125,51 @@ export class UpbitClient {
       requestBody = JSON.stringify(body);
     }
 
-    const response = await fetch(url.toString(), {
-      method,
-      headers,
-      body: requestBody || undefined,
-    });
+    let response;
+    try {
+      response = await Promise.race([
+        fetch(url.toString(), {
+          method,
+          headers,
+          body: requestBody || undefined,
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Request timeout")), this.requestTimeout)
+        ),
+      ]) as Response;
+    } catch (fetchError: any) {
+      if (fetchError.message === "Request timeout") {
+        throw new Error("Upbit API 요청이 타임아웃되었습니다. 나중에 다시 시도해주세요.");
+      }
+      throw new Error(`Network error: ${fetchError.message}`);
+    }
+
+    const responseText = await response.text();
 
     if (!response.ok) {
+      // HTML 오류 페이지인 경우 감지
+      if (responseText.includes("<html") || responseText.includes("<!DOCTYPE")) {
+        throw new Error(
+          `Upbit API server error (${response.status}). API URL이 올바른지 확인해주세요.`
+        );
+      }
+
+      // JSON 오류 응답 시도
       try {
-        const error = await response.json();
+        const error = JSON.parse(responseText);
         throw new Error(
           `Upbit API Error: ${error.error?.name || "Unknown Error"} - ${
             error.error?.message || response.statusText
           }`
         );
       } catch (parseError) {
-        // JSON 파싱 실패 시 status text 사용
+        // JSON 파싱 실패 시 원본 텍스트 사용
         throw new Error(
-          `Upbit API Error (${response.status}): ${response.statusText}`
+          `Upbit API Error (${response.status}): ${responseText.substring(0, 200) || response.statusText}`
         );
       }
     }
 
-    const responseText = await response.text();
     if (!responseText) {
       throw new Error("Upbit API returned empty response");
     }
@@ -154,7 +177,7 @@ export class UpbitClient {
     try {
       return JSON.parse(responseText);
     } catch (parseError) {
-      throw new Error(`Invalid JSON response from Upbit API: ${responseText.substring(0, 100)}`);
+      throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}`);
     }
   }
 
