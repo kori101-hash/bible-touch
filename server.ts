@@ -346,14 +346,18 @@ app.post("/api/trading/init", async (req, res) => {
 
     // Upbit API 연결 테스트
     console.log("Upbit API 테스트 중...");
+    console.log("API Key (처음 10자):", apiKey?.substring(0, 10) + "***");
     const testClient = new UpbitClient({ apiKey, apiSecret });
 
     try {
       // 계좌 정보 조회로 API 유효성 테스트
+      console.log("계좌 정보 조회 시도...");
       const accounts = await testClient.getAccounts();
       console.log("✅ Upbit API 연결 성공. 계좌 수:", accounts.length);
     } catch (apiError: any) {
-      console.error("❌ Upbit API 연결 실패:", apiError);
+      console.error("❌ Upbit API 연결 실패:");
+      console.error("   오류:", apiError?.message);
+      console.error("   상세:", apiError);
       const errorMsg = String(apiError?.message || apiError || "");
 
       if (errorMsg.includes("401") || errorMsg.includes("Unauthorized") || errorMsg.includes("invalid")) {
